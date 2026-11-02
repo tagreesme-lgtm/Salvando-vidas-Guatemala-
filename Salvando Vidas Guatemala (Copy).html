@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Salvando Vidas Guatemala (Copy)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--red:#4F46C8;--bg1:#0B2A6F;--bg2:#8B3FD9;--ink:#16120C;--yel:#FFD400;--paper:#FFF8DC;--ok:#0A8F3C;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 8%,rgba(255,255,255,.22) 0 90px,transparent 92px),radial-gradient(circle at 88% 30%,rgba(255,255,255,.14) 0 140px,transparent 142px),radial-gradient(circle at 10% 85%,rgba(255,255,255,.12) 0 110px,transparent 112px),linear-gradient(160deg,var(--bg1),var(--bg2)) fixed;color:var(--ink);font:16px/1.45 "Trebuchet MS","Segoe UI",Arial,sans-serif}
+header{background:var(--red);color:#fff;padding:14px 16px;border-bottom:8px solid var(--yel);display:flex;justify-content:space-between;align-items:center;gap:8px}
+header h1{margin:0;font:900 22px/1 "Arial Black",Impact,sans-serif;letter-spacing:.5px}
+header small{display:block;font-weight:700;color:var(--yel);font-size:12px;margin-top:3px}
+main{max-width:520px;margin:0 auto;padding:16px}
+.card{background:var(--paper);border:4px solid var(--yel);border-radius:14px;padding:16px;margin-bottom:16px}
+h2{margin:0 0 10px;font:900 20px "Arial Black",Impact,sans-serif;color:var(--red)}
+label{display:block;font-weight:700;margin:10px 0 4px}
+input,select,textarea{width:100%;padding:11px;border:2px solid var(--ink);border-radius:8px;font:inherit;background:#fff}
+textarea{min-height:60px}
+button{font:900 16px "Arial Black",Arial,sans-serif;border:0;border-radius:10px;padding:13px 16px;cursor:pointer;background:var(--red);color:#fff;width:100%;margin-top:14px}
+button.y{background:var(--yel);color:var(--ink)}
+button.k{background:var(--ink);color:var(--yel)}
+button.s{width:auto;padding:8px 10px;font-size:13px;margin:0}
+.row{display:flex;gap:10px}.row>div{flex:1}
+.msg{padding:10px;border-radius:8px;font-weight:700;margin-top:12px}
+.err{background:#ffd9d6;color:#8a0500}.good{background:#d4f5de;color:#065c27}
+.big{font:900 34px "Arial Black",sans-serif;color:var(--red)}
+.qrbox{background:#fff;border:10px solid var(--red);border-radius:16px;padding:14px;display:flex;justify-content:center;margin:12px 0}
+.alert{background:var(--red);color:var(--yel);text-align:center;font:900 20px "Arial Black",sans-serif;padding:10px;border-radius:10px}
+.tag{display:inline-block;background:var(--ink);color:var(--yel);border-radius:6px;padding:2px 8px;font-weight:700;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{padding:8px 4px;border-bottom:2px solid #e0d28a;text-align:left;vertical-align:top}
+.link{background:none;color:var(--yel);width:auto;padding:6px;margin:0;font-size:13px;text-decoration:underline}
+.hide{display:none}
+:focus-visible{outline:4px solid var(--ink);outline-offset:2px}
+</style>
+</head>
+<body>
+<header><div><h1>SALVANDO VIDAS GUATEMALA</h1><small>Tu QR de emergencia</small></div><button class="link" id="out" onclick="logout()">Salir</button></header>
+<main id="app"></main>
+<script>
+var K='sv_gt_db',db,cur=null,isAdmin=false,tab='login';
+function load(){try{db=JSON.parse(localStorage.getItem(K))}catch(e){db=null}
+ if(!db||!db.users)db={users:{},min:10,admin:'admin123'}}
+function save(){try{localStorage.setItem(K,JSON.stringify(db))}catch(e){}}
+function h(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function hash(s){var x=5381;for(var i=0;i<s.length;i++)x=((x<<5)+x+s.charCodeAt(i))|0;return String(x)}
+function $(i){return document.getElementById(i)}
+function msg(t,c){return '<div class="msg '+(c||'err')+'">'+h(t)+'</div>'}
+function theme(){var g=cur&&db.users[cur]?db.users[cur].d.sexo:'',c={H:['#1456D9','#061A52','#2F7BFF'],M:['#8B3FD9','#3B1470','#C9A2F5']}[g]||['#4F46C8','#0B2A6F','#8B3FD9'],s=document.documentElement.style;s.setProperty('--red',c[0]);s.setProperty('--bg1',c[1]);s.setProperty('--bg2',c[2])}
+function render(){theme();
+ $('out').style.display=(cur||isAdmin)?'block':'none';
+ var a=$('app');
+ if(isAdmin)return adminView(a);
+ if(cur)return userView(a);
+ var l=tab==='login';
+ a.innerHTML='<div class="card"><h2>'+(l?'Iniciar sesión':'Crear cuenta')+'</h2>'+
+ (l?'':'<label>Nombre completo</label><input id="n" autocomplete="name"><label>Sexo</label><select id="sx"><option value="">Selecciona</option><option value="H">Hombre (azul)</option><option value="M">Mujer (lila)</option></select>')+
+ '<label>Correo</label><input id="e" type="email" autocomplete="email"><label>Contraseña</label><input id="p" type="password" autocomplete="'+(l?'current-password':'new-password')+'">'+
+ '<div id="m"></div><button onclick="'+(l?'doLogin()':'doReg()')+'">'+(l?'ENTRAR':'REGISTRARME')+'</button>'+
+ '<button class="y" onclick="tab=\''+(l?'reg':'login')+'\';render()">'+(l?'Crear cuenta nueva':'Ya tengo cuenta')+'</button></div>'+
+ '<div class="card"><h2>Administrador</h2><label>Contraseña de administrador</label><input id="ap" type="password"><div id="am"></div><button class="k" onclick="adminLogin()">ENTRAR AL PANEL</button></div>';
+}
+function doReg(){var n=$('n').value.trim(),e=$('e').value.trim().toLowerCase(),p=$('p').value;
+ if(!n||!/^\S+@\S+\.\S+$/.test(e)||p.length<4||!$('sx').value)return $('m').innerHTML=msg('Escribe tu nombre, elige tu sexo, un correo válido y una contraseña de 4 o más caracteres.');
+ if(db.users[e])return $('m').innerHTML=msg('Ese correo ya tiene cuenta. Inicia sesión.');
+ db.users[e]={name:n,pass:hash(p),d:{sexo:$('sx').value},paid:0,ref:'',date:''};save();cur=e;render()}
+function doLogin(){var e=$('e').value.trim().toLowerCase(),u=db.users[e];
+ if(!u||u.pass!==hash($('p').value))return $('m').innerHTML=msg('Correo o contraseña incorrectos.');cur=e;render()}
+function adminLogin(){if($('ap').value!==db.admin)return $('am').innerHTML=msg('Contraseña de administrador incorrecta.');isAdmin=true;render()}
+function logout(){cur=null;isAdmin=false;tab='login';render()}
+var F=[['sexo','Sexo'],['dpi','DPI / CUI'],['sangre','Tipo de sangre'],['nac','Fecha de nacimiento'],['alergias','Alergias'],['meds','Medicamentos'],['cond','Condiciones médicas'],['cnom','Contacto de emergencia (nombre)'],['ctel','Contacto de emergencia (teléfono)'],['seguro','Seguro / IGSS']];
+function userView(a){var u=db.users[cur],d=u.d,s='';
+ s+='<div class="card"><h2>Hola, '+h(u.name)+'</h2><span class="tag">'+(u.paid?'PAGO ACTIVO · Q'+u.paid:'PAGO PENDIENTE')+'</span></div>';
+ s+='<div class="card"><h2>Mis datos de emergencia</h2>';
+ F.forEach(function(f){var k=f[0];
+  if(k==='sexo')s+='<label>Sexo</label><select id="f_sexo"><option value="H"'+(d.sexo==='H'?' selected':'')+'>Hombre</option><option value="M"'+(d.sexo==='M'?' selected':'')+'>Mujer</option></select>';
+  else if(k==='sangre')s+='<label>'+f[1]+'</label><select id="f_sangre"><option value="">Selecciona</option>'+['O+','O-','A+','A-','B+','B-','AB+','AB-'].map(function(x){return '<option'+(d.sangre===x?' selected':'')+'>'+x+'</option>'}).join('')+'</select>';
+  else if(k==='nac')s+='<label>'+f[1]+'</label><input id="f_nac" type="date" value="'+h(d.nac)+'">';
+  else if(k==='ctel')s+='<label>'+f[1]+'</label><input id="f_ctel" type="tel" placeholder="5555-5555" value="'+h(d.ctel)+'">';
+  else if(k==='alergias'||k==='meds'||k==='cond')s+='<label>'+f[1]+'</label><textarea id="f_'+k+'" maxlength="120">'+h(d[k])+'</textarea>';
+  else s+='<label>'+f[1]+'</label><input id="f_'+k+'" maxlength="60" value="'+h(d[k])+'">'}); 
+ s+='<div id="dm"></div><button onclick="saveData()">GUARDAR DATOS</button></div>';
+ if(!u.paid){s+='<div class="card"><h2>Pago para activar tu QR</h2><div class="big">Mínimo Q'+h(db.min)+'</div>'+
+  '<label>Monto a pagar (Q)</label><input id="amt" type="number" min="'+db.min+'" value="'+db.min+'">'+
+  '<label>Forma de pago</label><select id="meth"><option>Depósito o transferencia (BAM, BI, Banrural)</option><option>Tarjeta</option><option>Efectivo en oficina</option></select>'+
+  '<label>No. de boleta o referencia</label><input id="ref" maxlength="30"><div id="pm"></div><button class="y" onclick="pay()">REGISTRAR PAGO</button></div>';}
+ else if(!d.dpi||!d.sangre||!d.ctel){s+='<div class="card">'+msg('Completa DPI, tipo de sangre y teléfono de contacto para generar tu QR.')+'</div>'}
+ else{s+='<div class="card"><div class="alert">⚠ EMERGENCIA MÉDICA ⚠</div><div class="qrbox"><div id="qr"></div></div>'+
+  '<div class="alert" style="background:var(--yel);color:var(--red)">'+h(u.name)+' · SANGRE '+h(d.sangre)+'</div>'+
+  '<p style="text-align:center;font-weight:700">Escanea con la cámara de cualquier celular. Guarda una captura de pantalla y úsala como fondo de tu pantalla de bloqueo.</p></div>';}
+ a.innerHTML=s;
+ if($('qr'))new QRCode($('qr'),{text:payload(u),width:240,height:240,correctLevel:QRCode.CorrectLevel.L});
+}
+function payload(u){var d=u.d;return 'SALVANDO VIDAS GUATEMALA - EMERGENCIA\nNombre: '+u.name+'\nDPI: '+d.dpi+'\nSangre: '+d.sangre+'\nNacimiento: '+(d.nac||'-')+'\nAlergias: '+(d.alergias||'Ninguna')+'\nMedicamentos: '+(d.meds||'Ninguno')+'\nCondiciones: '+(d.cond||'Ninguna')+'\nSeguro: '+(d.seguro||'-')+'\nLLAMAR A: '+(d.cnom||'-')+' '+d.ctel+'\nBomberos 123 / PNC 110 / Cruz Roja 125'}
+function saveData(){var u=db.users[cur];F.forEach(function(f){u.d[f[0]]=$('f_'+f[0]).value.trim()});save();render();$('dm').innerHTML=msg('Datos guardados.','good')}
+function pay(){var m=parseFloat($('amt').value),u=db.users[cur];
+ if(!(m>=db.min))return $('pm').innerHTML=msg('El monto debe ser de Q'+db.min+' o más.');
+ if(!$('ref').value.trim())return $('pm').innerHTML=msg('Escribe el número de boleta o referencia.');
+ u.paid=m;u.ref=$('ref').value.trim()+' ('+$('meth').value+')';u.date=new Date().toLocaleDateString('es-GT');save();render()}
+function adminView(a){var s='<div class="card"><h2>Panel de administración</h2><label>Pago mínimo (Q)</label><input id="min" type="number" min="0" step="0.01" value="'+h(db.min)+'"><div id="mm"></div><button onclick="setMin()">GUARDAR PAGO MÍNIMO</button></div>';
+ var us=Object.keys(db.users),tot=0;us.forEach(function(e){tot+=db.users[e].paid||0});
+ s+='<div class="card"><h2>Usuarios ('+us.length+')</h2><p><b>Total recaudado: Q'+tot.toFixed(2)+'</b></p>';
+ if(!us.length)s+='<p>Aún no hay usuarios registrados en este dispositivo.</p>';
+ else{s+='<div style="overflow-x:auto"><table><tr><th>Usuario</th><th>Pago</th><th></th></tr>';
+  us.forEach(function(e){var u=db.users[e];s+='<tr><td><b>'+h(u.name)+'</b><br>'+h(e)+'<br>Sangre: '+h(u.d.sangre||'-')+'</td><td>'+(u.paid?'Q'+u.paid+'<br>'+h(u.date)+'<br>'+h(u.ref):'Pendiente')+'</td><td><button class="s y" onclick="tg(\''+h(e)+'\')">'+(u.paid?'Anular':'Aprobar')+'</button><br><br><button class="s" onclick="del(\''+h(e)+'\')">Borrar</button></td></tr>'});
+  s+='</table></div>'}
+ s+='</div><div class="card"><h2>Cambiar contraseña</h2><label>Nueva contraseña de administrador</label><input id="np" type="password"><div id="pm2"></div><button class="k" onclick="setPass()">CAMBIAR CONTRASEÑA</button></div>';
+ a.innerHTML=s}
+function setMin(){var v=parseFloat($('min').value);if(!(v>=0))return $('mm').innerHTML=msg('Escribe un monto válido.');db.min=v;save();$('mm').innerHTML=msg('Pago mínimo actualizado: Q'+v,'good')}
+function tg(e){var u=db.users[e];if(u.paid)u.paid=0;else{u.paid=db.min;u.date=new Date().toLocaleDateString('es-GT');u.ref='Aprobado por administrador'}save();render()}
+function del(e){if(confirm('¿Borrar este usuario?')){delete db.users[e];save();render()}}
+function setPass(){var p=$('np').value;if(p.length<6)return $('pm2').innerHTML=msg('Usa 6 o más caracteres.');db.admin=p;save();$('np').value='';$('pm2').innerHTML=msg('Contraseña cambiada.','good')}
+load();render();
+</script>
+</body>
+</html>
